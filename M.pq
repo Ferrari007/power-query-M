@@ -1,5 +1,4 @@
-let
-
+{[
 正则 = (list1,bat) =>
 		Web.Page(
 			Text.Combine({"<script>document.write('",Text.From(list1),"'.match(/",Text.From(bat),"/g))</script>"})
@@ -52,5 +51,4 @@ let
 		"有限公司","",Replacer.ReplaceText,{"经销商"})
 in
     底价
-in
-  政策
+]}{0}
