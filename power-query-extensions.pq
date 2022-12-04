@@ -52,8 +52,7 @@ let
 		"有限公司","",Replacer.ReplaceText,{"经销商"})
 in
     底价
-
-],
+,
 Result = _extensionLibrary
 in
   Result
