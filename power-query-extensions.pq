@@ -1,148 +1,9 @@
 let
 
-MissingTests = List.Select(Record.FieldNames(_extensionLibrary), each not 
-    List.MatchesAny(Tests, (testRecord as record) => Text.Contains(testRecord[CaseName], _))),
-MissingDocumentation = List.Select(Record.FieldNames(_extensionLibrary), each not
-    Record.HasFields(Value.Metadata(Value.Type(Record.Field(_extensionLibrary, _))), "Documentation.Examples")),
-Tests = {
-    [ 
-        CaseName = "List.From", 
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                {"A", "B", "C"}, 
-                library[List.From]("{A, B, C}"),
-                "Text should be split on ,")
-    ],
-    [ 
-        CaseName = "List.From - no braces", 
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                {"A", "B", "C"}, 
-                library[List.From]("A, B, C"),
-                "Text should be split on ,")
-    ],
-    [ 
-        CaseName = "List.Flatten", 
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                { 1, 2, Table.FromRecords({[x=1]}), 3, 4, 5}, 
-                library[List.Flatten]({ 1, 2, Table.FromRecords({[x=1]}), {3, 4, 5} }),
-                "Flattened list")
-    ],
-    [ 
-        CaseName = "Number.ToLetters", 
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                { "A", "BC", "BAD" }, 
-                { 
-                    library[Number.ToLetters](1),
-                    library[Number.ToLetters](55),
-                    library[Number.ToLetters](1382)
-                },
-                "1, 2, and 3 letter translations")
-    ],
-    [ 
-        CaseName = "Table.RenameColumn", 
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                {"NewName", "NumberCol"}, 
-                Table.ColumnNames(library[Table.RenameColumn](TestUtils[SimpleTable], "TextCol", "NewName")),
-                "Column should have new name")
-    ],
-    [
-        CaseName = "Text.Until",
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                "abc ", 
-                library[Text.Until]("abc 123", "1"),
-                "Proper substring should be found")
-    ],
-    [
-        CaseName = "Text.Substring - infer end",
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                "BI Rules!", 
-                library[Text.Substring]("Power BI Rules!", 6),
-                "Text.Substring('Power BI Rules', 6)")
-    ],
-    [
-        CaseName = "Switch case pairs",
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                2, 
-                library[Switch]("B", {{"A", 1}, {"B", 2}, {"C", 3}}),
-                "B is second case")
-    ],
-    [
-        CaseName = "Switch separate case and result",
-        Test = (library as record) => 
-            TestUtils[AssertEqual](
-                4, 
-                library[Switch]("TE", {"QB", "RB", "WR", "TE", "K", "D/ST"}, {1, 2, 3, 4, 5, 6}),
-                "TE is 4th case")
-    ]
-},
+WanK = [
 
-TestUtils = [ 
-    AssertEqual = (expected as any, actual as any, description as text) => 
-        let
-            expectedType = Value.Type(expected),
-            actualType = Value.Type(actual),
-            listAsText = (list as list) =>
-                "{" & Text.Range(List.Accumulate(expected, "", (state, current) => state & ", " & Text.From(current)), 1) & " }",
-            expectedAsText = if expected is list then listAsText(expected) else Text.From(expected),
-            actualAsText = if expected is list then listAsText(actual) else Text.From(actual),
-            typeAsText = (value as any) => 
-                if value is binary then "binary" else
-                if value is date then "date" else
-                if value is datetime then "datetime" else
-                if value is datetimezone then "datetimezone" else
-                if value is duration then "duration" else
-                if value is function then "function" else
-                if value is list then "list" else
-                if value is logical then "logical" else
-                if value is none then "none" else
-                if value is null then "null" else
-                if value is number then "number" else
-                if value is record then "record" else
-                if value is table then "table" else
-                if value is text then "text" else
-                if value is time then "time" else
-                if value is type then "type" else
-                if value is any then "any"
-                else "unknown -- not a primitive type!"
-        in
-            if not Value.Is(actualType, Value.Type(expectedType)) then 
-                error "Expected type " & typeAsText(expectedType) & " does not match actual type " & typeAsText(actualType) 
-//            else if expected is list then
-//                List.Count(
-            else if expected = actual then 
-                true
-            else if expectedAsText = actualAsText then error "Cannot provide accurate failure message! Text versions of expected and actual are identical, but they failed the equality test!"
-            else error "Expected: " & expectedAsText & "; Actual: " & actualAsText & "; Reason: " & description,
-    SimpleTable = Table.FromRecords({[TextCol = "A", NumberCol = "1"], [TextCol = "B", NumberCol = 2], [TextCol = "C", NumberCol = 3]})
-],
-
-TestResults = 
-    let 
-        failedTests = List.Select(
-            List.Transform(Tests, (suite as record) => 
-                let 
-                    testResult = try suite[Test](_extensionLibrary)
-                in
-                    if testResult[HasError] then Error.Record(suite[CaseName], testResult[Error][Message], null) else true), 
-            each _ <> true) 
-    in 
-        if List.IsEmpty(failedTests) then "All " & Text.From(List.Count(Tests)) & " tests passed! :)" else failedTests,
-
-_extensionLibrary = [
-
-正则 = (list1,bat) =>
-		Web.Page(
-			Text.Combine({"<script>document.write('",Text.From(list1),"'.match(/",Text.From(bat),"/g))</script>"})
-		)[Data]{0}[Children]{0}[Children]{1}[Text]{0}
-,
 时间 = (list) => 
+//W[时间]()
 let
     重命名 = Table.RenameColumns(list,{"经销商名称", "经销商"}),
 	类型 = Table.TransformColumnTypes(Table.TransformColumnTypes(重命名,{{"发送SAP日期", type datetime}}),{{"发送SAP日期", type date}, {"下单日期", type date}, {"数量", type number}, {"单价", type number}, {"总价", type number}, {"总重量", type number}, {"总体积", type number}}),
@@ -154,6 +15,7 @@ in
 	月份
 ,
 政策 = (list,add) => 
+//W[政策](,表格)
 let
     政策表 = Table.Buffer(add), 
 	表格查询=Table.AggregateTableColumn(
@@ -190,11 +52,10 @@ let
 in
     底价
 ,
-路径 = (any) =>"D:\平台数据"
+文件夹 = "D:\平台数据"
 ,
-
 表格调整=(Exclude,Annual,OneStop,Add,Amortization)=>
-//M[表格调整](排除表,年返表,一步到位,追加表,摊销表)
+//W[表格调整](排除表,年返表,一步到位,追加表,摊销表)
 let
     享受 = Table.AddColumn(Exclude, "享受", each M[正则](Text.BeforeDelimiter([政策], "不"),"(年返|回款|追加|提货|追加|单胎)")),
     全政策 = Table.AddColumn(享受, "自定义", each "年返,回款,追加,提货,追加,单胎"),
@@ -255,8 +116,108 @@ let
     删除的其他列 = Table.SelectColumns(筛选数据,{"经销商", "年度", "月份", "品牌", "规格", "花纹", "属性", "排除", "年返", "类别", "金额", "点", "单胎"})
 in
     删除的其他列
-
+,
+发货=(list1,list2)=>
+//W[发货](源,平台源)
+let
+    筛选的行 = Table.SelectRows(list1, each 
+		  (Number.From(Date.Month([通知日期])=12 and Date.Day([通知日期])>25)+Date.Year([通知日期])
+		  =Number.From(Date.Month(DateTime.FixedLocalNow())=12 and Date.Day(DateTime.FixedLocalNow())>25)+Date.Year(DateTime.FixedLocalNow())
+		  and
+		  (if Number.From(Date.Day([通知日期])>25)+Date.Month([通知日期])>12 then 1 else Number.From(Date.Day([通知日期])>25)+Date.Month([通知日期]))=
+		  (if Number.From(Date.Day(DateTime.FixedLocalNow())>25)+Date.Month(DateTime.FixedLocalNow())>12 then 1 else Number.From(Date.Day(DateTime.FixedLocalNow())>25)+Date.Month(DateTime.FixedLocalNow())))),
+    平台 = Table.Combine(List.Transform(list2,each
+		Table.ReplaceValue(
+			Table.SelectRows(
+				Table.ExpandTableColumn(
+					Table.AddColumn(_,
+					"数据",
+					(x)=>Table.SelectRows(
+							筛选的行,
+							each Text.Contains(_[订单号],x[订单号])
+						)),
+				"数据", {"通知日期", "序号", "实际日期", "备注"}, {"通知日期", "序号", "实际日期", "备注"}),
+			each ([通知日期]<>null and [年度]=条件{0}[年度] and [月份]=条件{0}[月份])),
+		each [订单号], each 0,(x,y,z)=>if y<>null then Text.Combine({Text.From(y),"(",Text.From(x),")"}) else null,{"发票号"})
+	)),
+    总金额 = Table.SelectColumns(Table.AddColumn(平台, "总金额", each [底价]*[数量]),{"通知日期", "序号", "实际日期", "备注", "经销商", "发票号", "物料名称", "数量", "总重量", "底价", "总金额"}),
+    小计 = Table.SelectColumns(Table.Group(总金额, {"通知日期", "序号", "实际日期"}, {"表", each
+                Table.InsertRows(
+                    _,Table.RowCount(_),
+                        {
+                            [
+                                通知日期=null,
+								序号=null,
+								实际日期=null,
+								订单号=null,
+								备注=null,
+								订单号查询=null,
+								平台源=null,
+								经销商=null,
+                                发票号=[备注]{0},
+								物料名称="〖小计〗：",
+                                数量=List.Sum([数量]),
+								总重量=List.Sum([总重量]),
+								底价=null,
+								总金额=List.Sum([总金额])
+                            ]
+                        }
+                                )
+                                       }
+                     ),{"表"}),
+    展开分组 = Table.ExpandTableColumn(小计, "表", {"通知日期", "序号", "实际日期", "备注", "经销商", "发票号", "物料名称", "数量", "总重量", "底价", "总金额"}, {"通知日期", "序号", "实际日期", "备注","经销商", "发票号", "物料名称", "数量", "总重量", "底价", "总金额"}),
+    总计 = Table.TransformColumnTypes(Table.InsertRows(展开分组
+                    ,Table.RowCount(展开分组),
+                        {
+                            [
+                                通知日期=null,
+								序号=null,
+								实际日期=null,
+								订单号=null,
+								备注=null,
+								订单号查询=null,
+								平台源=null,
+								经销商=null,
+                                发票号=null,
+								物料名称="【总计】：",
+                                数量=List.Sum(展开分组[数量])/2,
+								总重量=List.Sum(展开分组[总重量])/2,
+								底价=null,
+								总金额=List.Sum(展开分组[总金额])/2
+                            ]
+                        }
+                                ),
+    	{{"通知日期", type date}, {"实际日期", type date}}),
+    公斤价 =Table.AddColumn(总计,"公斤价",each Number.Round([总金额]/[总重量]/1.13,2)),
+    删除的其他列 = Table.SelectColumns(公斤价,{"通知日期", "序号", "实际日期", "经销商", "物料名称", "数量", "底价", "总金额", "总重量", "公斤价", "发票号"})
+in
+    删除的其他列
+,
+占比=(list1,list2)=>
+//W[占比](数据,平台)
+let
+    确认订单 = Table.SelectColumns(Table.SelectRows(list1, each [年度]=条件{0}[年度] and [月份]=条件{0}[月份]),{"经销商","物料名称","数量"}),
+	标准订单 = Table.ReplaceValue(Table.ReplaceValue(Table.SelectColumns(Table.RenameColumns(list2,{{"产品选择", "物料名称"}}),{"经销商","物料名称","数量"}),"有限公司","",Replacer.ReplaceText,{"经销商"}),"	","",Replacer.ReplaceText,{"经销商"}),
+	合并平台 = Table.Combine({确认订单,标准订单}),
+    总数 = Table.Group(合并平台,"经销商",{"总数量", each List.Sum([数量]), type number}),
+	流量 = Table.Group(Table.SelectRows(合并平台, each
+	Text.Contains([物料名称],"12R")and
+	    (Text.Contains([物料名称],"310")or
+		 Text.Contains([物料名称],"229")or
+		 Text.Contains([物料名称],"329")or
+		 Text.Contains([物料名称],"330")or
+		 Text.Contains([物料名称],"333")or
+		 Text.Contains([物料名称],"331")or
+		 Text.Contains([物料名称],"680")or
+		 Text.Contains([物料名称],"665")or
+		 Text.Contains([物料名称],"668")))
+	,"经销商",{"数量", each List.Sum([数量]), type number}),
+    合并流量 = Table.Sort(Table.ExpandTableColumn(Table.NestedJoin(总数, {"经销商"}, 流量, {"经销商"}, "总数", JoinKind.LeftOuter), "总数", {"数量"}, {"流量"}),{{"经销商", Order.Ascending}}),
+	合计 = Table.InsertRows(合并流量,Table.RowCount(合并流量),{[经销商="【合计】：",总数量=List.Sum(合并流量[总数量]),流量=List.Sum(合并流量[流量])]}),
+    占比 = Table.AddColumn(合计, "占比", each if [流量]=null then null else Number.ToText([流量]/[总数量],"P1"))
+in
+    占比
 ],
-Result = _extensionLibrary
+Result = WanK
 in
   Result
