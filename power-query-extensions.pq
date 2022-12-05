@@ -1,4 +1,5 @@
 let
+WanK = [
 
 正则 = (list1,bat) =>
 		Web.Page(
@@ -18,7 +19,7 @@ in
 ,
 政策 = (list,add) => 
 let
-    政策表 = Table.Buffer(add),
+    政策表 = Table.Buffer(add), 
 	表格查询=Table.AggregateTableColumn(
 		Table.AddColumn(list,
 				"平台源",
@@ -52,5 +53,73 @@ let
 		"有限公司","",Replacer.ReplaceText,{"经销商"})
 in
     底价
+,
+路径 = (any) =>"D:\平台数据"
+,
+
+表格调整=(Exclude,Annual,OneStop,Add,Amortization)=>
+//M[表格调整](排除表,年返表,一步到位,追加表,摊销表)
+let
+    享受 = Table.AddColumn(Exclude, "享受", each M[正则](Text.BeforeDelimiter([政策], "不"),"(年返|回款|追加|提货|追加|单胎)")),
+    全政策 = Table.AddColumn(享受, "自定义", each "年返,回款,追加,提货,追加,单胎"),
+    增加排除 = Table.AddColumn(
+		Table.AddIndexColumn(全政策,"索引", 0, 1, Int64.Type), 
+			"排除", each Table.AddColumn(
+							Table.SelectColumns(全政策,{"自定义", "享受"}),
+							"排除",
+								(x)=>
+									let
+										a=List.Transform(
+											Record.ToList(x),
+											each Text.Split(_,",")
+										)
+									in
+										Text.Combine(List.Difference(a{0},a{1}),",")
+								){[索引]}[排除]),
+    排除规格 = Table.AddColumn(增加排除, "规格", each M[正则]([政策],"(((\d{3}\/\d{2})|(1?\d(\.\d{2})?))R(\d+(\.\d{1})?|)|R(16|20)|(235|245|275|285|295|315)(\/\d{2})?)")),
+    排除花纹 = Table.AddColumn(排除规格, "花纹", each M[正则](List.Accumulate({"235","245","275","285","295","315"},[政策],(s,v)=>Text.Replace(s,v,"")),"([A-Za-z]|)\d{3}([A-Za-z]|)?(\+)?")),
+    排除规格调整 = Table.ReplaceValue(排除花纹,each [政策], each 0,
+        (x,y,z)=>if x="null"
+            then
+                if Text.Contains(y,"公制")then "/"
+                else if Text.Contains(y,"轻卡") then "R16"
+                else "R"
+            else x,{"规格"}),
+    排除查询 = Table.SelectColumns(Table.ReplaceValue(排除规格调整,"null","R",Replacer.ReplaceValue,{"花纹"}),{"经销商", "年度", "月份", "规格", "花纹", "排除"}),
+	点 = Table.AddColumn(Add, "点", each Text.Remove(M[正则]([政策],"(\-|\+)?\d+(\.\d+)?%"), {"%"})),
+	单胎 = Table.AddColumn(点, "单胎", each Text.Remove(M[正则]([政策],"\d+(\.\d{1,2})?元"), {"元"})),
+    追加规格 = Table.AddColumn(单胎, "规格", each M[正则]([政策],"(((\d{3}\/\d{2})|(1?\d(\.\d{2})?))R(\d+(\.\d{1})?|)|R(16|20)|(235|245|275|285|295|315)(\/\d{2})?)")),
+    追加规格调整 = Table.ReplaceValue(追加规格,each [政策], each 0,(x,y,z)=>if Text.Contains(y,"公制")and x="null" then "/" else if x="null" then "R" else x,{"规格"}),
+    追加品牌查询=Table.ReplaceValue(Table.ExpandTableColumn(Table.AddColumn(追加规格调整,
+            "品牌数据",
+            (x)=>Table.SelectRows(
+                    Table.FromRows({{"万世达","WYNSTAR"},{"路星","路星"},{"万家达","万家达"},{"超级舰队","超级舰队"},{"飞跃","飞跃"},{"公爵","公爵"},{"第三组","万家达\公爵"},{"千系","WY\路星\万家达"},{"广系","舰队\飞跃\公爵"}},{"关键字", "品牌"}),
+                    each Text.Contains(x[政策],_[关键字])
+                )
+        ), "品牌数据", {"品牌"}, {"品牌"}),null,"R",Replacer.ReplaceValue,{"品牌"}),
+    追加查询 = Table.ReplaceValue(
+				Table.AddColumn(追加品牌查询, "花纹", each M[正则](List.Accumulate({"235","245","275","285","295","315"},[政策],(s,v)=>Text.Replace(s,v,"")),"([A-Za-z]|)\d{3}([A-Za-z]|)?(\+)?")),
+				"null","R",Replacer.ReplaceValue,{"花纹"}),
+	源= Table.Combine({OneStop, 排除查询,Annual,Amortization,追加查询}),
+    更改的类型 = Table.TransformColumnTypes(源,{{"经销商", type text}, {"年度", type text}, {"月份", type text}, {"规格", type text}, {"花纹", type text}, {"品牌", type text}, {"点", type number}, {"单胎", type number}}),
+    替换的值 = Table.ReplaceValue(Table.ReplaceValue(更改的类型,null,"无",Replacer.ReplaceValue,{"年度", "月份", "排除"}),null,"R",Replacer.ReplaceValue,{"品牌", "规格", "花纹"}),
+    拆分列 = Table.TransformColumns(替换的值, {{"经销商", each Text.SplitAny(_,"、,\")},{"年度", each Text.SplitAny(_,"、,\")},{"月份", each Text.SplitAny(_,"、,\")},{"品牌", each Text.SplitAny(_,"、,\")},{"规格", each Text.SplitAny(_,"、,\")},{"花纹", each Text.SplitAny(_,"、,\")}}),
+    展开 = Table.ExpandListColumn(Table.ExpandListColumn(Table.ExpandListColumn(Table.ExpandListColumn(Table.ExpandListColumn(Table.ExpandListColumn(拆分列, "经销商"), "年度"), "月份"), "品牌"), "规格"), "花纹"),
+    筛选数据 = Table.SelectRows(展开, each not((Text.Contains([经销商],"方圆")
+				and (Text.Contains([品牌],"WY")or Text.Contains([品牌],"舰")))
+			or(Text.Contains([经销商],"美轮")
+				and (Text.Contains([品牌],"星")or Text.Contains([品牌],"飞")
+					or Text.Contains([品牌],"家")or Text.Contains([品牌],"爵")))
+			or(Text.Contains([经销商],"零")
+				and (Text.Contains([品牌],"星")or Text.Contains([品牌],"飞"))))
+		and(条件{0}[功能]="全数据"
+			or(条件{0}[功能]="年数据" and Text.From([年度])=Text.From(条件{0}[年度]))
+			or(条件{0}[功能]="月数据" and Text.From([年度])=Text.From(条件{0}[年度])
+				and (Text.From([月份])=Text.From(条件{0}[月份])or Text.From([月份])="无")))),
+    删除的其他列 = Table.SelectColumns(筛选数据,{"经销商", "年度", "月份", "品牌", "规格", "花纹", "属性", "排除", "年返", "类别", "金额", "点", "单胎"})
 in
-  政策
+    删除的其他列
+],
+Result = WanK
+in
+  Result

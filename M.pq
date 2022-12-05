@@ -51,4 +51,6 @@ let
 		"有限公司","",Replacer.ReplaceText,{"经销商"})
 in
     底价
+,
+路径 = (any) =>"D:\平台数据"
 ]}{0}
