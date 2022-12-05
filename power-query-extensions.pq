@@ -52,7 +52,7 @@ let
 in
     底价
 ,
-文件夹 = "D:\平台数据"
+文件夹 =(any)=> "D:\平台数据"
 ,
 表格调整=(Exclude,Annual,OneStop,Add,Amortization)=>
 //W[表格调整](排除表,年返表,一步到位,追加表,摊销表)
