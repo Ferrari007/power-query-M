@@ -9,8 +9,9 @@ let
 	类型 = Table.TransformColumnTypes(Table.TransformColumnTypes(重命名,{{"发送SAP日期", type datetime}}),{{"发送SAP日期", type date}, {"下单日期", type date}, {"数量", type number}, {"单价", type number}, {"总价", type number}, {"总重量", type number}, {"总体积", type number}}),
 	公司=Table.AddColumn(类型, "公司", each if Text.Contains([经销商],"远通") then "远通" else if Text.Contains([经销商],"方圆") or Text.Contains([经销商],"格劳") or Text.Contains([经销商],"福") then "泰夏" else if Text.Contains([经销商],"美轮") or Text.Contains([经销商],"鼎")then "东森" else [经销商]),
 	日期 = Table.AddColumn(公司, "日期", each if DateTime.Date(DateTime.From([发送SAP日期]))=null then [下单日期] else DateTime.Date(DateTime.From([发送SAP日期]))),
-	年度 = Table.AddColumn(日期, "年度", each Number.From(Date.Month([日期])=12 and Date.Day([日期])>25)+Date.Year([日期])),
-	月份 = Table.RemoveColumns(Table.AddColumn(年度, "月份", each if Number.From(Date.Day([日期])>25)+Date.Month([日期])>12 then 1 else Number.From(Date.Day([日期])>25)+Date.Month([日期])),{"经销商代码", "物料代码", "总体积", "库位", "发送SAP日期"})
+	年度 = Table.AddColumn(日期, "年度", each Date.Year([日期]+#duration(6,0,0,0))),
+	月份 = Table.RemoveColumns(Table.AddColumn(年度, "月份", each Number.Mod(Number.From(Date.Day([日期])>25)+Date.Month([日期])+11,12)+1),
+		{"经销商代码", "物料代码", "总体积", "库位", "发送SAP日期"})
 in
 	月份
 ,
@@ -51,8 +52,6 @@ let
 		"有限公司","",Replacer.ReplaceText,{"经销商"})
 in
     底价
-,
-文件夹 =(any)=> "D:\平台数据"
 ,
 表格调整=(Exclude,Annual,OneStop,Add,Amortization)=>
 //W[表格调整](排除表,年返表,一步到位,追加表,摊销表)
@@ -140,7 +139,8 @@ let
 			each ([通知日期]<>null and [年度]=条件{0}[年度] and [月份]=条件{0}[月份])),
 		each [订单号], each 0,(x,y,z)=>if y<>null then Text.Combine({Text.From(y),"(",Text.From(x),")"}) else null,{"发票号"})
 	)),
-    总金额 = Table.SelectColumns(Table.AddColumn(平台, "总金额", each [底价]*[数量]),{"通知日期", "序号", "实际日期", "备注", "经销商", "发票号", "物料名称", "数量", "总重量", "底价", "总金额"}),
+    去重 = Table.Distinct(平台, {"经销商", "订单号", "物料名称", "数量", "单价"}),
+    总金额 = Table.SelectColumns(Table.AddColumn(去重, "总金额", each [底价]*[数量]),{"通知日期", "序号", "实际日期", "备注", "经销商", "发票号", "物料名称", "数量", "总重量", "底价", "总金额"}),
     小计 = Table.SelectColumns(Table.Group(总金额, {"通知日期", "序号", "实际日期"}, {"表", each
                 Table.InsertRows(
                     _,Table.RowCount(_),
